@@ -5,21 +5,27 @@
 #include "resource_manager.h"
 
 
-Game::Game(SDL_Renderer* renderer) : View(ViewStyle{ .flexDirection = YGFlexDirectionColumn, .flexShrink = 1.0f, .padding = 10.0f }, renderer)
+Game::Game(SDL_Renderer* renderer) : View(ViewStyle{ .flexDirection = YGFlexDirectionColumn, .alignItems = YGAlignCenter, .flexShrink = 1.0f, .padding = 10.0f }, renderer)
 {
-    YGNodeStyleSetAlignItems(m_layout_node, YGAlignCenter);
-    m_grid4x4 = new Grid{Puzzle::generate_puzzle(4), renderer};
-    m_grid6x6 = new Grid{Puzzle::generate_puzzle(6), renderer};
-    m_grid10x10 = new Grid{Puzzle::generate_puzzle(10), renderer};
+    m_grid4x4 = new Grid{4, renderer};
+    m_grid6x6 = new Grid{6, renderer};
+    m_grid10x10 = new Grid{10, renderer};
 
-    insert_child(*m_grid4x4, 0);
-    // insert_child(*m_grid6x6, 1);
-    // insert_child(*m_grid10x10, 2);
+    insert_child(m_grid4x4);
+    insert_child(m_grid6x6);
+    insert_child(m_grid10x10);
 
     m_grid4x4->show();
     m_grid6x6->hide();
     m_grid10x10->hide();
     m_current_grid = m_grid4x4;
+}
+
+Game::~Game()
+{
+    delete m_grid4x4;
+    delete m_grid6x6;
+    delete m_grid10x10;
 }
 
 void Game::on_update()
@@ -30,8 +36,16 @@ void Game::on_update()
     }
 }
 
+void Game::new_puzzle()
+{
+    m_current_grid->new_puzzle();
+}
+
+void Game::reset_puzzle()
+{
+    m_current_grid->reset_puzzle();
+}
+
 void Game::on_render()
 {
-    SDL_SetRenderDrawColor(m_renderer, 200, 0, 200, SDL_ALPHA_OPAQUE);
-    SDL_RenderFillRect(m_renderer, &m_bounds);
 }

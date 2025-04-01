@@ -119,7 +119,7 @@ private:
     void update_articulation_points();
     void update_articulation_points_in_bag(CellPosition root);
     size_t recursive_dfs_in_bag(CellPosition node, CellPosition parent_node, size_t &count, Cells<size_t> &discovery_time);
-    void update_articulation_points_outside_bag(CellPosition root);
+    void update_articulation_points_outside_bag();
     size_t recursive_dfs_outside_bag(CellPosition node, CellPosition parent_node, size_t& count, Cells<size_t>& discovery_time);
 
     CellPosition get_top_left_pos_in_bag();

@@ -5,9 +5,7 @@
 #include "stb_image.h"
 #undef STB_IMAGE_IMPLEMENTATION
 
-// SDL_Texture arrow_icon;
-// std::vector<Font> fonts;
-std::vector<uint16_t> font_sizes;
+FontManager font_manager;
 
 // Function to load an image using stb_image and create an SDL_Texture
 SDL_Texture* LoadTexture(SDL_Renderer* renderer, const char* file) {
@@ -57,10 +55,47 @@ void load_resources()
     // for (auto& font_size : font_sizes) {
     //     fonts.push_back(LoadFontEx("res/Roboto-Bold.ttf", font_size, 0, 250));
     // }
+    // g_font = TTF_OpenFont("../res/Roboto-Bold.ttf", 48.0f);
+    
 }
 
 void unload_resources()
 {
     // UnloadTexture(arrow_icon);
     // UnloadFont(fonts[0]);
+}
+
+FontManager::~FontManager()
+{
+    for (auto& [pt, font] : m_fonts) {
+        TTF_CloseFont(font);
+    }
+}
+
+TTF_Font *FontManager::get_font_for_point_size(int point_size)
+{
+    if (!m_fonts.contains(point_size)) {
+        TTF_Font* font = TTF_OpenFont("/Users/moe/Documents/projects/cpp/layout/res/FreeSansBold.ttf", static_cast<float>(point_size));
+        if (!font) {
+            SDL_Log("Couldn't load font: %s\n", SDL_GetError());
+            std::exit(EXIT_FAILURE);
+        }
+        m_fonts[point_size] = font;
+    }
+
+    return m_fonts[point_size];
+}
+
+TTF_Font *FontManager::get_icon_font_for_point_size(int point_size)
+{
+    if (!m_icon_fonts.contains(point_size)) {
+        TTF_Font* font = TTF_OpenFont("/Users/moe/Documents/projects/cpp/layout/res/icomoon.ttf", static_cast<float>(point_size));
+        if (!font) {
+            SDL_Log("Couldn't load font: %s\n", SDL_GetError());
+            std::exit(EXIT_FAILURE);
+        }
+        m_icon_fonts[point_size] = font;
+    }
+
+    return m_icon_fonts[point_size];
 }

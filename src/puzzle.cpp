@@ -70,7 +70,7 @@ void Puzzle::update_articulation_points()
     CellPosition top_left = get_top_left_pos_outside_bag();
     if (top_left.i != -1)
     {
-        update_articulation_points_outside_bag(top_left);
+        update_articulation_points_outside_bag();
     }
 }
 
@@ -145,7 +145,7 @@ size_t Puzzle::recursive_dfs_in_bag(CellPosition node, CellPosition parent_node,
     return low;
 }
 
-void Puzzle::update_articulation_points_outside_bag(CellPosition root)
+void Puzzle::update_articulation_points_outside_bag()
 {
     Cells<size_t> discovery_time(m_size * m_size);
     size_t count = 0;
@@ -155,7 +155,7 @@ void Puzzle::update_articulation_points_outside_bag(CellPosition root)
     {
         if (m_cell_state.at(0, j) == CellState::out_of_bag)
         {
-            recursive_dfs_outside_bag({0, j}, {root.i - 1, root.j}, ++count, discovery_time);
+            recursive_dfs_outside_bag({0, j}, {-1, -1}, ++count, discovery_time);
         }
     }
     // bottom
@@ -163,7 +163,7 @@ void Puzzle::update_articulation_points_outside_bag(CellPosition root)
     {
         if (m_cell_state.at(m_size - 1, j) == CellState::out_of_bag)
         {
-            recursive_dfs_outside_bag({static_cast<CellIndexType>(m_size) - 1, j}, {root.i + 1, root.j}, ++count, discovery_time);
+            recursive_dfs_outside_bag({static_cast<CellIndexType>(m_size) - 1, j}, {-1, -1}, ++count, discovery_time);
         }
     }
     // left
@@ -171,7 +171,7 @@ void Puzzle::update_articulation_points_outside_bag(CellPosition root)
     {
         if (m_cell_state.at(i, 0) == CellState::out_of_bag)
         {
-            recursive_dfs_outside_bag({i, 0}, {root.i, root.j - 1}, ++count, discovery_time);
+            recursive_dfs_outside_bag({i, 0}, {-1, -1}, ++count, discovery_time);
         }
     }
     // right
@@ -179,7 +179,7 @@ void Puzzle::update_articulation_points_outside_bag(CellPosition root)
     {
         if (m_cell_state.at(i, m_size - 1) == CellState::out_of_bag)
         {
-            recursive_dfs_outside_bag({i, static_cast<CellIndexType>(m_size) - 1}, {root.i, root.j + 1}, ++count, discovery_time);
+            recursive_dfs_outside_bag({i, static_cast<CellIndexType>(m_size) - 1}, {-1, -1}, ++count, discovery_time);
         }
     }
 
@@ -201,12 +201,12 @@ size_t Puzzle::recursive_dfs_outside_bag(CellPosition node, CellPosition parent_
     discovery_time[node] = count;
     size_t low = count;
 
+    bool parent_is_outside = (parent_node.i == -1 || parent_node.j == -1);
+
     for (auto &move : neighbor_moves)
     {
         CellPosition neighbor = node + move;
-        ;
-        if (neighbor != parent_node)
-        {
+        if (!(neighbor == parent_node || (parent_is_outside && (neighbor.i == -1 || neighbor.j == -1)))) {
             if (m_cell_state.is_legal_position(neighbor))
             {
                 if (m_cell_state[neighbor] == CellState::out_of_bag)

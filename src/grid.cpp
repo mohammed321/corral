@@ -4,7 +4,7 @@
 #include "resource_manager.h"
 #include "yoga/Yoga.h"
 
-Grid::Grid(std::unique_ptr<Puzzle> puzzle, SDL_Renderer* renderer) : View(ViewStyle{ }, renderer) ,m_puzzle(std::move(puzzle)), m_size(m_puzzle->get_size())
+Grid::Grid(size_t size, SDL_Renderer* renderer) : View(ViewStyle{ }, renderer) , m_size(size)
 {
     // YGNodeStyleSetHeightPercent(m_layout_node, 100);
     // YGNodeStyleSetDisplay(m_layout_node, YGDisplayContents);
@@ -13,25 +13,40 @@ Grid::Grid(std::unique_ptr<Puzzle> puzzle, SDL_Renderer* renderer) : View(ViewSt
     // YGNodeStyleSetFlexGrow(m_layout_node, 1.0f);
     // YGNodeStyleSetFlex(m_layout_node, 1.0f);
     YGNodeStyleSetAspectRatio(m_layout_node, 1.0f);
+
+    m_puzzle = Puzzle::generate_puzzle(m_size);
 }
 
 void Grid::on_resize()
 {
     m_cell_size = calc_cell_size();
-    set_grid_texture(m_renderer);
-    set_bag_border_texture(m_renderer);
+    m_grid_size = calc_grid_size();
+    set_textures();
 }
 
 void Grid::on_update()
 {   
     m_should_highlight_square = false;
+}
 
-    SDL_FPoint pointer_pos;
-    SDL_MouseButtonFlags mouse_state = SDL_GetMouseState(&pointer_pos.x, &pointer_pos.y);
-    m_input_state.mouse_released_this_frame = m_input_state.mouse_down && !(mouse_state & SDL_BUTTON_LMASK);
-    m_input_state.clicked_this_frame = !m_input_state.mouse_down && (mouse_state & SDL_BUTTON_LMASK);
-    m_input_state.mouse_down = mouse_state & SDL_BUTTON_LMASK;
+void Grid::on_enter(InputState& input_state)
+{
+}
 
+void Grid::on_leave(InputState &input_state)
+{
+}
+
+void Grid::on_mouse_down(InputState &input_state)
+{
+}
+
+void Grid::on_mouse_up(InputState &input_state)
+{
+}
+
+void Grid::on_mouse_move(InputState &input_state)
+{
     SDL_FRect content_rect = {
         .x = m_bounds.x + m_padding,
         .y = m_bounds.y + m_padding,
@@ -39,22 +54,21 @@ void Grid::on_update()
         .h = m_bounds.h - 2 * m_padding
     };
     
-    if (SDL_PointInRectFloat(&pointer_pos, &content_rect)) {
+    if (SDL_PointInRectFloat(&input_state.pointer_pos, &content_rect)) {
         CellPosition pos = {
-            static_cast<CellIndexType>((SDL_clamp(pointer_pos.y, content_rect.y, content_rect.y + content_rect.h - 1) - content_rect.y) / (m_cell_size + m_line_width)),
-            static_cast<CellIndexType>((SDL_clamp(pointer_pos.x, content_rect.x, content_rect.x + content_rect.w - 1) - content_rect.x) / (m_cell_size + m_line_width))
+            static_cast<CellIndexType>((SDL_clamp(input_state.pointer_pos.y, content_rect.y, content_rect.y + content_rect.h - 1) - content_rect.y) / (m_cell_size + m_line_width)),
+            static_cast<CellIndexType>((SDL_clamp(input_state.pointer_pos.x, content_rect.x, content_rect.x + content_rect.w - 1) - content_rect.x) / (m_cell_size + m_line_width))
         };
-        handle_input(pos, mouse_state);
+        handle_input(pos, input_state);
     }
-
 }
 
-void Grid::handle_input(CellPosition pos, SDL_MouseButtonFlags mouse_state)
+void Grid::handle_input(CellPosition pos, InputState& input_state)
 {
-    if (!m_input_state.mouse_down)
+    if (!input_state.mouse_is_down)
     {
-        m_input_state.mouse_clicked_in_bag = false;
-        m_input_state.mouse_clicked_out_of_bag = false;
+        m_extra_input_state.mouse_clicked_in_bag = false;
+        m_extra_input_state.mouse_clicked_out_of_bag = false;
     }
 
     if (m_enabled)
@@ -69,15 +83,15 @@ void Grid::handle_input(CellPosition pos, SDL_MouseButtonFlags mouse_state)
             can_flip = true;
         } 
 
-        if (m_input_state.clicked_this_frame)
+        if (input_state.mouse_is_pressed_down_this_frame)
         {
             if (in_bag) 
             {
-                m_input_state.mouse_clicked_in_bag = true;
+                m_extra_input_state.mouse_clicked_in_bag = true;
             }
             else
             {
-                m_input_state.mouse_clicked_out_of_bag = true;
+                m_extra_input_state.mouse_clicked_out_of_bag = true;
             }
 
         }
@@ -87,48 +101,42 @@ void Grid::handle_input(CellPosition pos, SDL_MouseButtonFlags mouse_state)
             if (in_bag)
             {
                 m_highlight_square_color = {80, 80, 80, 100};
-                if (m_input_state.mouse_down) {
-                    if (m_input_state.mouse_clicked_in_bag)
+                if (input_state.mouse_is_down) {
+                    if (m_extra_input_state.mouse_clicked_in_bag)
                     {
                         m_puzzle->remove_from_bag(pos);
-                        set_bag_border_texture(m_renderer);
+                        set_bag_border_texture();
+                        set_text_texture();
                     }
                 }
             }
             else 
             {
                 m_highlight_square_color = {255, 255, 255, 150};
-                if (m_input_state.mouse_down) {
-                    if (m_input_state.mouse_clicked_out_of_bag)
+                if (input_state.mouse_is_down) {
+                    if (m_extra_input_state.mouse_clicked_out_of_bag)
                     {
                         m_puzzle->put_back_in_bag(pos);
-                        set_bag_border_texture(m_renderer);
+                        set_bag_border_texture();
+                        set_text_texture();
                     }
                 }
             }
-
         } 
         else 
         {
             m_highlight_square_color = {200, 0, 0, 50};
-            m_input_state.mouse_clicked_in_bag = false;
-            m_input_state.mouse_clicked_out_of_bag = false;
+            m_extra_input_state.mouse_clicked_in_bag = false;
+            m_extra_input_state.mouse_clicked_out_of_bag = false;
         }
     }
 }
 
-void Grid::fill_cell(SDL_Renderer *renderer, CellPosition pos, SDL_Color color)
+void Grid::fill_cell(CellPosition pos, SDL_Color color)
 {
-    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-
-    const SDL_FRect rect = {
-        .x = pos.j * (m_cell_size + m_line_width) + m_line_width + m_bounds.x + m_padding,
-        .y = pos.i * (m_cell_size + m_line_width) + m_line_width + m_bounds.y + m_padding,
-        .w = m_cell_size,
-        .h = m_cell_size
-    }; 
-
-    SDL_RenderFillRect(renderer, &rect);
+    SDL_SetRenderDrawColor(m_renderer, color.r, color.g, color.b, color.a);
+    const SDL_FRect rect = get_frect_for_pos(pos, m_bounds.x, m_bounds.y);
+    SDL_RenderFillRect(m_renderer, &rect);
 }
 
 inline uint32_t absDifference(uint32_t a, uint32_t b) {
@@ -155,57 +163,67 @@ uint32_t closest(const std::vector<uint16_t>& values, const uint32_t& value) {
     return min_idx;
 }
 
-void Grid::render_cell_target(CellPosition pos, int32_t target) 
+void Grid::render_cell_target(CellPosition pos, int32_t target, SDL_Surface* text_surface) 
 {
-        uint32_t font_idx = closest(font_sizes, m_cell_size/2);
-        uint32_t font_size = font_sizes[font_idx];
+    float text_size = SDL_floorf(m_cell_size/2);
+    SDL_Surface* text = TTF_RenderText_Blended(font_manager.get_font_for_point_size(text_size), std::to_string(target).c_str(), 0, {0,0,0,255});
+    SDL_Rect dst_rect = get_rect_for_pos(pos);
 
-        Vector2 text_size = MeasureTextEx(fonts[font_idx], std::to_string(target).c_str(), font_size, 0);
-        Vector2 text_pos = {
-            m_bounds.x + pos.j * m_cell_size + (m_cell_size - text_size.x) / 2 ,
-            m_bounds.y + pos.i * m_cell_size + (m_cell_size - text_size.y) / 2};
-        DrawTextEx(fonts[font_idx], std::to_string(target).c_str(), text_pos, font_size, 0, BLACK);
+    dst_rect.x +=  (m_cell_size - text->w) / 2;
+    dst_rect.y +=  (m_cell_size - text->h) / 2;
+    dst_rect.w = text->w;
+    dst_rect.h = text->h;
+    SDL_BlitSurface(text, nullptr, text_surface, &dst_rect);
 
-        const int32_t current_score = m_puzzle->get_num_cells_visible_from(pos) - target;
-        Color current_score_color;
-        std::string current_score_str;
-        if (current_score > 0)
-        {
-            current_score_str = std::format("+{}", current_score);
-            current_score_color = RED;
-        }
-        else if (current_score < 0)
-        {
-            current_score_str = std::format("{}", current_score);
-            current_score_color = RED;
-        }
-        else
-        {
-            current_score_str = "0";
-            current_score_color = GREEN;
-        }
-        uint32_t second_font_idx = (font_idx < 3) ? 0 : font_idx - 3;
-        uint32_t second_font_size = font_sizes[second_font_idx];
-        // std::cout << ">>>>>>>>>>>>>>>>>>>>>>" << std::endl;
-        // std::cout << font_idx << " - " << font_size << std::endl;
-        // std::cout << second_font_idx << " - " << second_font_size << std::endl;
-        // std::cout << "<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
-        DrawTextEx(
-            fonts[second_font_idx],
-            current_score_str.c_str(),
-            {
-                text_pos.x + text_size.x - 2,
-                text_pos.y - text_size.y/5
-            },
-            second_font_size,
-            0,
-            current_score_color);
+    const int32_t current_score = m_puzzle->get_num_cells_visible_from(pos) - target;
+    SDL_Surface* superscript = nullptr;
+    if (current_score > 0)
+    {
+        superscript = TTF_RenderText_Blended(font_manager.get_font_for_point_size(text_size/2), std::format("+{}", current_score).c_str(), 0, {255, 0, 0, 255});
+    }
+    else if (current_score < 0)
+    {
+        superscript = TTF_RenderText_Blended(font_manager.get_font_for_point_size(text_size/2), std::format("{}", current_score).c_str(), 0, {255, 0, 0, 255});
+    }
+    else
+    {
+        superscript = TTF_RenderGlyph_Blended(font_manager.get_icon_font_for_point_size(text_size/2), 0xea10, {0, 255, 0, 255});
+    }
+
+    dst_rect.x += dst_rect.w - 3;
+    dst_rect.y -= superscript->h/4;
+    dst_rect.w = superscript->w;
+    dst_rect.h = superscript->h;
+    SDL_BlitSurface(superscript, nullptr, text_surface, &dst_rect);
 }
 
-void Grid::set_grid_texture(SDL_Renderer *renderer) {
+void Grid::set_text_texture() {
 
-    const float grid_size = m_bounds.w - 2 * m_padding; 
-    if (grid_size <= 0) {
+    if (m_grid_size <= 0) {
+        if (m_text_texture) {
+            SDL_DestroyTexture(m_text_texture);
+        }
+        m_text_texture = nullptr;
+        return;
+    }
+
+    SDL_Surface* text_surface = SDL_CreateSurface(m_bounds.w + 1, m_bounds.h + 1, SDL_PIXELFORMAT_ARGB8888);
+
+    for (auto &[pos, target] : m_puzzle->get_targets())
+    {
+        render_cell_target(pos, target, text_surface);
+    }
+
+    if (m_text_texture) {
+        SDL_DestroyTexture(m_text_texture);
+    }
+    m_text_texture = SDL_CreateTextureFromSurface(m_renderer, text_surface);
+    SDL_DestroySurface(text_surface);
+}
+
+void Grid::set_grid_texture() {
+
+    if (m_grid_size <= 0) {
         if (m_grid_texture) {
             SDL_DestroyTexture(m_grid_texture);
         }
@@ -213,20 +231,21 @@ void Grid::set_grid_texture(SDL_Renderer *renderer) {
         return;
     }
 
-    plutovg_surface_t* surface = plutovg_surface_create(m_bounds.w, m_bounds.w);
+    plutovg_surface_t* surface = plutovg_surface_create(m_bounds.w + 1, m_bounds.h + 1);
     plutovg_canvas_t* canvas = plutovg_canvas_create(surface);
 
     float dashes[] = {m_line_width, m_cell_size};
     plutovg_canvas_set_dash_array(canvas, dashes, 2);
-    plutovg_canvas_set_line_width(canvas, grid_size);
-    plutovg_canvas_move_to(canvas, 0, grid_size/2);
-    plutovg_canvas_line_to(canvas, grid_size, grid_size/2);
-    plutovg_canvas_move_to(canvas, grid_size/2, 0);
-    plutovg_canvas_line_to(canvas, grid_size/2, grid_size);
+    plutovg_canvas_set_line_width(canvas, m_grid_size);
+    plutovg_canvas_move_to(canvas, 0, m_grid_size/2);
+    plutovg_canvas_line_to(canvas, m_grid_size, m_grid_size/2);
+    plutovg_canvas_move_to(canvas, m_grid_size/2, 0);
+    plutovg_canvas_line_to(canvas, m_grid_size/2, m_grid_size);
 
-    plutovg_canvas_set_rgb(canvas, 0.8, 0.8, 0.8);
+    plutovg_canvas_set_rgb(canvas, 0.2049, 0.2827, 0.3809);
     plutovg_canvas_translate(canvas, m_padding, m_padding);
     plutovg_canvas_stroke(canvas);
+    // plutovg_surface_write_to_png(surface, "grid.png");
 
     SDL_Surface* sdl_surface = SDL_CreateSurfaceFrom(
         plutovg_surface_get_width(surface), 
@@ -239,7 +258,7 @@ void Grid::set_grid_texture(SDL_Renderer *renderer) {
     if (m_grid_texture) {
         SDL_DestroyTexture(m_grid_texture);
     }
-    m_grid_texture = SDL_CreateTextureFromSurface(renderer, sdl_surface);
+    m_grid_texture = SDL_CreateTextureFromSurface(m_renderer, sdl_surface);
 
     SDL_DestroySurface(sdl_surface);
     plutovg_canvas_destroy(canvas);
@@ -254,10 +273,9 @@ plutovg_point_t Grid::cell_position_to_point(const CellPosition &pos)
     };
 }
 
-void Grid::set_bag_border_texture(SDL_Renderer *renderer) {
+void Grid::set_bag_border_texture() {
 
-    const float grid_size = m_bounds.w - 2 * m_padding; 
-    if (grid_size <= 0) {
+    if (m_grid_size <= 0) {
         if (m_bag_border_texture) {
             SDL_DestroyTexture(m_bag_border_texture);
         }
@@ -268,7 +286,7 @@ void Grid::set_bag_border_texture(SDL_Renderer *renderer) {
     std::vector<CellPosition> bag_border_points; // for drawing the loop around cells
     m_puzzle->trace_bag_border_points(bag_border_points);
 
-    plutovg_surface_t* surface = plutovg_surface_create(m_bounds.w, m_bounds.w);
+    plutovg_surface_t* surface = plutovg_surface_create(m_bounds.w + 1, m_bounds.h + 1);
     plutovg_canvas_t* canvas = plutovg_canvas_create(surface);
 
     const plutovg_point_t starting_point = cell_position_to_point(bag_border_points[0]);
@@ -282,7 +300,7 @@ void Grid::set_bag_border_texture(SDL_Renderer *renderer) {
     plutovg_canvas_set_line_width(canvas, m_bag_border_thickness);
     plutovg_canvas_set_line_join(canvas, PLUTOVG_LINE_JOIN_ROUND);
     plutovg_canvas_set_rgb(canvas, 0.0, 0.0, 0.0);
-    plutovg_canvas_translate(canvas, m_padding, m_padding);
+    plutovg_canvas_translate(canvas, m_padding + m_line_width/2, m_padding + m_line_width/2);
     plutovg_canvas_stroke(canvas);
 
     SDL_Surface* sdl_surface = SDL_CreateSurfaceFrom(
@@ -296,7 +314,7 @@ void Grid::set_bag_border_texture(SDL_Renderer *renderer) {
     if (m_bag_border_texture) {
         SDL_DestroyTexture(m_bag_border_texture);
     }
-    m_bag_border_texture = SDL_CreateTextureFromSurface(renderer, sdl_surface);
+    m_bag_border_texture = SDL_CreateTextureFromSurface(m_renderer, sdl_surface);
 
     SDL_DestroySurface(sdl_surface);
     plutovg_canvas_destroy(canvas);
@@ -305,36 +323,30 @@ void Grid::set_bag_border_texture(SDL_Renderer *renderer) {
 
 void Grid::on_render()
 {
-    SDL_SetRenderDrawColor(m_renderer, 130, 130, 130, SDL_ALPHA_OPAQUE);
-    SDL_RenderFillRect(m_renderer, &m_bounds);
-
     for (CellIndexType i = 0; i < m_size; i++)
     {
         for (CellIndexType j = 0; j < m_size; j++)
         {
             if (m_puzzle->is_in_bag({i, j}))
             {
-                fill_cell(m_renderer, {i, j}, {255,255,255,255});
+                fill_cell({i, j}, {255,255,255,255});
             }
             else
             {
-                fill_cell(m_renderer, {i, j}, {130,130,130,255});
+                // fill_cell({i, j}, {130,130,130,255});
+                fill_cell({i, j}, {225, 238, 243,255});
             }
         }
-    }
-
-    for (auto &[pos, target] : m_puzzle->get_targets())
-    {
-        render_cell_target(pos, target);
     }
     
     if (m_should_highlight_square)
     {
-        fill_cell(m_renderer, m_highlight_square, m_highlight_square_color);
+        fill_cell(m_highlight_square, m_highlight_square_color);
     }
     
     if (m_grid_texture) SDL_RenderTexture(m_renderer, m_grid_texture, nullptr, &m_bounds);
     if (m_bag_border_texture) SDL_RenderTexture(m_renderer, m_bag_border_texture, nullptr, &m_bounds);
+    if (m_text_texture) SDL_RenderTexture(m_renderer, m_text_texture, nullptr, &m_bounds);
 }
 
 size_t Grid::get_size()
@@ -342,3 +354,14 @@ size_t Grid::get_size()
     return m_size;
 }
 
+void Grid::new_puzzle()
+{
+    m_puzzle = Puzzle::generate_puzzle(m_size);
+    set_textures();
+}
+
+void Grid::reset_puzzle()
+{
+    m_puzzle->restart();
+    set_textures();
+}

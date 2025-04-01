@@ -6,6 +6,7 @@
 #include "yoga/Yoga.h"
 #include "ui/elements/div.h"
 #include "game.h"
+#include "ui/view_controller.h"
 
 struct ApplicationSpecification {
     int width = 1000;
@@ -25,16 +26,12 @@ private:
     SDL_Renderer *m_renderer = nullptr;
 
     bool m_running = true;
-    bool m_calc_layout = true;
+    bool m_resized = true;
 
-    Div* m_ui_root;
-    Div* m_header;
-    Game* m_game;
+    ViewController* ui_view_controller;
 
     inline void loop();
     void update();
     void render();
     void handle_input();
-
-    inline void render_ui(YGNodeRef root, uint8_t c);
 };

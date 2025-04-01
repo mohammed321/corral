@@ -15,7 +15,9 @@ set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}" CACHE INTERNAL "")
 project(corall VERSION 1.0)
 
 set(EXECUTABLE_NAME ${PROJECT_NAME})
+set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "") 
 set(SDL_SHARED OFF)
+# set(SDL_STATIC ON)
 
 # Set C++ standard (e.g., C++20)
 set(CMAKE_CXX_STANDARD 20)
@@ -42,9 +44,9 @@ add_executable(${EXECUTABLE_NAME} ${SOURCES})
 # Configure SDL by calling its CMake file.
 # we use EXCLUDE_FROM_ALL so that its install targets and configs don't
 # pollute upwards into our configuration.
-add_subdirectory(SDL EXCLUDE_FROM_ALL)
+add_subdirectory("deps/SDL" EXCLUDE_FROM_ALL)
 set(SDLTTF_VENDORED ON) # tell SDL_ttf to build its own dependencies
-add_subdirectory(SDL_ttf EXCLUDE_FROM_ALL)	
+add_subdirectory("deps/SDL_ttf" EXCLUDE_FROM_ALL)	
 
 # Handle resources for WebAssembly
 if (EMSCRIPTEN)
@@ -53,17 +55,16 @@ if (EMSCRIPTEN)
 endif()
 
 # Link libraries to the executable
-target_link_libraries(${EXECUTABLE_NAME} plutovg yogacore)
-# Link SDL to our executable. This also makes its include directory available to us. 
 target_link_libraries(${EXECUTABLE_NAME} PUBLIC 
-	SDL3_ttf::SDL3_ttf      # remove if you are not using SDL_ttf
-	# SDL3_mixer::SDL3_mixer  # remove if you are not using SDL_mixer
-	# SDL3_image::SDL3_image	# remove if you are not using SDL_image
-    SDL3::SDL3              # If using satelite libraries, SDL must be the last item in the list. 
+# Link SDL to our executable. This also makes its include directory available to us. 
+    SDL3::SDL3
+    SDL3_ttf::SDL3_ttf 
+    plutovg 
+    yogacore
 )
 
 if (APPLE)
-    target_link_libraries(${EXECUTABLE_NAME}
+    target_link_libraries(${EXECUTABLE_NAME} PUBLIC
         "-framework CoreMedia"
         "-framework CoreVideo"
         "-framework Cocoa"
@@ -83,6 +84,9 @@ if (APPLE)
         m
     )
 endif()
+
+# Copy the resources directory to the build directory
+file(COPY ${CMAKE_SOURCE_DIR}/res DESTINATION ${CMAKE_BINARY_DIR})
 
 # Optional: Add a target for running the executable
 add_custom_target(run
