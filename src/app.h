@@ -11,7 +11,7 @@
 struct ApplicationSpecification {
     int width = 1000;
     int height = 1000;
-    const char *title = "corall";
+    const char *title = "corral";
 };
 
 class Application {
