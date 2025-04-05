@@ -46,25 +46,6 @@ SDL_Texture* LoadTexture(SDL_Renderer* renderer, const char* file) {
     return texture;
 }
 
-void load_resources()
-{
-    // arrow_icon = LoadTexture("res/arrow_down.png");
-
-    // font_sizes = {12, 14, 20, 26, 32, 48, 54, 72, 90};
-    // // font_sizes = {8, 14, 20, 26, 32, 48, 54, 60, 66, 72, 78, 84, 90, 96, 102, 108, 114, 120};
-    // for (auto& font_size : font_sizes) {
-    //     fonts.push_back(LoadFontEx("res/Roboto-Bold.ttf", font_size, 0, 250));
-    // }
-    // g_font = TTF_OpenFont("../res/Roboto-Bold.ttf", 48.0f);
-    
-}
-
-void unload_resources()
-{
-    // UnloadTexture(arrow_icon);
-    // UnloadFont(fonts[0]);
-}
-
 FontManager::~FontManager()
 {
     for (auto& [pt, font] : m_fonts) {
