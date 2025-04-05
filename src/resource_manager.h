@@ -19,5 +19,3 @@ private:
 extern FontManager font_manager;
 
 SDL_Texture* LoadTexture(SDL_Renderer* renderer, const char* file);
-void load_resources();
-void unload_resources();
