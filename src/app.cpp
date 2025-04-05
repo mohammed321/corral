@@ -87,8 +87,6 @@ Application::Application(const ApplicationSpecification &spec)
 
     SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_BLEND);
 
-    load_resources();
-
     ui_view_controller = new ViewController(m_renderer, build_ui_tree(m_renderer));
 }
 

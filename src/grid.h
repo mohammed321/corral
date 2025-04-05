@@ -7,7 +7,7 @@
 #include "puzzle.h"
 #include "ui/view.h"
 #include "SDL3/SDL.h"
-#include "plutovg/plutovg.h"
+#include "plutovg.h"
 #include "ui/elements/label.h"
 
 class Grid : public View{

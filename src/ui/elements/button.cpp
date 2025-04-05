@@ -1,7 +1,7 @@
 #include "button.h"
 #include "SDL3/SDL.h"
 #include "../../common.h"
-#include "plutovg/plutovg.h"
+#include "plutovg.h"
 #include <tuple>
 
 
