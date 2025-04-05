@@ -1,10 +1,11 @@
 #include <format>
+#include <algorithm>
 #include <cstdlib>
 #include "grid.h"
 #include "resource_manager.h"
 #include "yoga/Yoga.h"
 
-Grid::Grid(size_t size, SDL_Renderer* renderer) : View(ViewStyle{ }, renderer) , m_size(size)
+Grid::Grid(size_t size, SDL_Renderer* renderer) : View(ViewStyle{.justify_content = YGJustifyCenter, }, renderer) , m_size(size)
 {
     // YGNodeStyleSetHeightPercent(m_layout_node, 100);
     // YGNodeStyleSetDisplay(m_layout_node, YGDisplayContents);
@@ -15,6 +16,10 @@ Grid::Grid(size_t size, SDL_Renderer* renderer) : View(ViewStyle{ }, renderer) ,
     YGNodeStyleSetAspectRatio(m_layout_node, 1.0f);
 
     m_puzzle = Puzzle::generate_puzzle(m_size);
+
+    m_solved_label = new Label({ .align_self = YGAlignCenter }, renderer, "Well Done!", 120, {219, 10, 91, 255});
+    insert_child(m_solved_label);
+    m_solved_label->hide();
 }
 
 void Grid::on_resize()
@@ -22,31 +27,73 @@ void Grid::on_resize()
     m_cell_size = calc_cell_size();
     m_grid_size = calc_grid_size();
     set_textures();
+    m_solved_label->set_point_size(static_cast<int>(m_bounds.w)/6);
 }
 
 void Grid::on_update()
 {   
-    m_should_highlight_square = false;
+        switch (m_extra_input_state) 
+        {
+            case flipping_in_bag_cells:
+                if (m_puzzle->can_remove_from_bag(m_hovered_cell)) {
+                    m_puzzle->remove_from_bag(m_hovered_cell);
+                    m_hovered_cell_color = SDL_Color{255, 255, 255, 150};
+                    set_bag_border_texture();
+                    set_text_texture();
+                }
+                break;
+            case flipping_out_of_bag_cells:
+                if (m_puzzle->can_put_back_in_bag(m_hovered_cell)) {
+                    m_puzzle->put_back_in_bag(m_hovered_cell);
+                    m_hovered_cell_color = SDL_Color{80, 80, 80, 100};
+                    set_bag_border_texture();
+                    set_text_texture();
+                }
+                break;
+            case idle:
+                break;
+        }
+
+        switch (m_hover_state)
+        {
+            case hover_moved:
+                {
+                    bool in_bag = m_puzzle->is_in_bag(m_hovered_cell);
+                    bool can_flip = m_puzzle->can_remove_from_bag(m_hovered_cell) || m_puzzle->can_put_back_in_bag(m_hovered_cell);
+                    if (can_flip) 
+                    {
+                        m_hovered_cell_color = in_bag? SDL_Color{80, 80, 80, 100} : SDL_Color{255, 255, 255, 150};
+                    } 
+                    else 
+                    {
+                        m_hovered_cell_color = {200, 0, 0, 50};
+                        m_extra_input_state = idle;
+                    }
+                    m_hover_state = hover_stable;
+                }
+                break;
+            case hover_stable:
+                break;
+        }
+
+    if (m_puzzle->is_solved()) {
+        m_enabled = false;
+        m_is_cell_hovered = false;
+        m_extra_input_state = idle;
+        m_solved_label->show();
+    }
 }
 
-void Grid::on_enter(InputState& input_state)
+void Grid::on_enter(InputState* input_state)
 {
 }
 
-void Grid::on_leave(InputState &input_state)
+void Grid::on_leave(InputState* input_state)
 {
+    m_is_cell_hovered = false;
 }
 
-void Grid::on_mouse_down(InputState &input_state)
-{
-}
-
-void Grid::on_mouse_up(InputState &input_state)
-{
-}
-
-void Grid::on_mouse_move(InputState &input_state)
-{
+bool Grid::point_to_cell_pos(const SDL_FPoint& point, CellPosition* pos) {
     SDL_FRect content_rect = {
         .x = m_bounds.x + m_padding,
         .y = m_bounds.y + m_padding,
@@ -54,81 +101,45 @@ void Grid::on_mouse_move(InputState &input_state)
         .h = m_bounds.h - 2 * m_padding
     };
     
-    if (SDL_PointInRectFloat(&input_state.pointer_pos, &content_rect)) {
-        CellPosition pos = {
-            static_cast<CellIndexType>((SDL_clamp(input_state.pointer_pos.y, content_rect.y, content_rect.y + content_rect.h - 1) - content_rect.y) / (m_cell_size + m_line_width)),
-            static_cast<CellIndexType>((SDL_clamp(input_state.pointer_pos.x, content_rect.x, content_rect.x + content_rect.w - 1) - content_rect.x) / (m_cell_size + m_line_width))
+    if (SDL_PointInRectFloat(&point, &content_rect)) {
+        *pos = {
+            static_cast<CellIndexType>(SDL_clamp((point.y - content_rect.y) / (m_cell_size + m_line_width), 0, m_size - 1)),
+            static_cast<CellIndexType>(SDL_clamp((point.x - content_rect.x) / (m_cell_size + m_line_width), 0, m_size - 1))
         };
-        handle_input(pos, input_state);
+        return true;
+    }
+
+    return false;
+}
+
+void Grid::on_mouse_down(InputState* input_state)
+{
+    if (point_to_cell_pos(input_state->pointer_pos, &m_hovered_cell)) {
+        if (m_puzzle->is_in_bag(m_hovered_cell)) 
+        {
+            if (m_puzzle->can_remove_from_bag(m_hovered_cell)) {
+                m_extra_input_state = flipping_in_bag_cells;
+            }
+        }
+        else
+        {
+            if ( m_puzzle->can_put_back_in_bag(m_hovered_cell)) {
+                m_extra_input_state = flipping_out_of_bag_cells;
+            }
+        }
     }
 }
 
-void Grid::handle_input(CellPosition pos, InputState& input_state)
+void Grid::on_mouse_up(InputState* input_state)
 {
-    if (!input_state.mouse_is_down)
-    {
-        m_extra_input_state.mouse_clicked_in_bag = false;
-        m_extra_input_state.mouse_clicked_out_of_bag = false;
-    }
+    m_extra_input_state = idle;
+}
 
-    if (m_enabled)
-    {
-        m_should_highlight_square = true;
-        m_highlight_square = pos;
-
-        bool in_bag = m_puzzle->is_in_bag(pos);
-        bool can_flip = false;
-        if (m_puzzle->can_remove_from_bag(pos) || m_puzzle->can_put_back_in_bag(pos)) 
-        {
-            can_flip = true;
-        } 
-
-        if (input_state.mouse_is_pressed_down_this_frame)
-        {
-            if (in_bag) 
-            {
-                m_extra_input_state.mouse_clicked_in_bag = true;
-            }
-            else
-            {
-                m_extra_input_state.mouse_clicked_out_of_bag = true;
-            }
-
-        }
-
-        if (can_flip) 
-        {
-            if (in_bag)
-            {
-                m_highlight_square_color = {80, 80, 80, 100};
-                if (input_state.mouse_is_down) {
-                    if (m_extra_input_state.mouse_clicked_in_bag)
-                    {
-                        m_puzzle->remove_from_bag(pos);
-                        set_bag_border_texture();
-                        set_text_texture();
-                    }
-                }
-            }
-            else 
-            {
-                m_highlight_square_color = {255, 255, 255, 150};
-                if (input_state.mouse_is_down) {
-                    if (m_extra_input_state.mouse_clicked_out_of_bag)
-                    {
-                        m_puzzle->put_back_in_bag(pos);
-                        set_bag_border_texture();
-                        set_text_texture();
-                    }
-                }
-            }
-        } 
-        else 
-        {
-            m_highlight_square_color = {200, 0, 0, 50};
-            m_extra_input_state.mouse_clicked_in_bag = false;
-            m_extra_input_state.mouse_clicked_out_of_bag = false;
-        }
+void Grid::on_mouse_move(InputState* input_state)
+{
+    m_is_cell_hovered = point_to_cell_pos(input_state->pointer_pos, &m_hovered_cell);
+    if (m_is_cell_hovered) {
+        m_hover_state = hover_moved;
     }
 }
 
@@ -165,7 +176,8 @@ uint32_t closest(const std::vector<uint16_t>& values, const uint32_t& value) {
 
 void Grid::render_cell_target(CellPosition pos, int32_t target, SDL_Surface* text_surface) 
 {
-    float text_size = SDL_floorf(m_cell_size/2);
+    int text_size = static_cast<int>(m_cell_size/2);
+    int superscript_text_size = static_cast<int>(m_cell_size/5);
     SDL_Surface* text = TTF_RenderText_Blended(font_manager.get_font_for_point_size(text_size), std::to_string(target).c_str(), 0, {0,0,0,255});
     SDL_Rect dst_rect = get_rect_for_pos(pos);
 
@@ -179,18 +191,18 @@ void Grid::render_cell_target(CellPosition pos, int32_t target, SDL_Surface* tex
     SDL_Surface* superscript = nullptr;
     if (current_score > 0)
     {
-        superscript = TTF_RenderText_Blended(font_manager.get_font_for_point_size(text_size/2), std::format("+{}", current_score).c_str(), 0, {255, 0, 0, 255});
+        superscript = TTF_RenderText_Blended(font_manager.get_font_for_point_size(superscript_text_size), std::format("+{}", current_score).c_str(), 0, {255, 0, 0, 255});
     }
     else if (current_score < 0)
     {
-        superscript = TTF_RenderText_Blended(font_manager.get_font_for_point_size(text_size/2), std::format("{}", current_score).c_str(), 0, {255, 0, 0, 255});
+        superscript = TTF_RenderText_Blended(font_manager.get_font_for_point_size(superscript_text_size), std::format("{}", current_score).c_str(), 0, {255, 0, 0, 255});
     }
     else
     {
-        superscript = TTF_RenderGlyph_Blended(font_manager.get_icon_font_for_point_size(text_size/2), 0xea10, {0, 255, 0, 255});
+        superscript = TTF_RenderGlyph_Blended(font_manager.get_icon_font_for_point_size(superscript_text_size), 0xea10, {0, 255, 0, 255});
     }
-
-    dst_rect.x += dst_rect.w - 3;
+    
+    dst_rect.x += dst_rect.w + std::min(0, (int)((m_cell_size - text->w)/3 - (superscript->w)));
     dst_rect.y -= superscript->h/4;
     dst_rect.w = superscript->w;
     dst_rect.h = superscript->h;
@@ -338,10 +350,10 @@ void Grid::on_render()
             }
         }
     }
-    
-    if (m_should_highlight_square)
+
+    if (m_is_cell_hovered)
     {
-        fill_cell(m_highlight_square, m_highlight_square_color);
+        fill_cell(m_hovered_cell, m_hovered_cell_color);
     }
     
     if (m_grid_texture) SDL_RenderTexture(m_renderer, m_grid_texture, nullptr, &m_bounds);
@@ -358,10 +370,14 @@ void Grid::new_puzzle()
 {
     m_puzzle = Puzzle::generate_puzzle(m_size);
     set_textures();
+    m_enabled = true;
+    m_solved_label->hide();
 }
 
 void Grid::reset_puzzle()
 {
     m_puzzle->restart();
     set_textures();
+    m_enabled = true;
+    m_solved_label->hide();
 }

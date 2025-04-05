@@ -9,5 +9,4 @@ SDL_Rect rect_from_frect(SDL_FRect frect) {
         .w = static_cast<int>(frect.w),
         .h = static_cast<int>(frect.h)
     };
-
 }

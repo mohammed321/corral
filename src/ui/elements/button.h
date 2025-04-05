@@ -3,6 +3,7 @@
 #include <string>
 
 #include "../view.h"
+#include "label.h"
 
 typedef void (*FuncPtr)(void*);
 
@@ -14,6 +15,9 @@ public:
         optional<SDL_Color> hover_color;
         optional<SDL_Color> pressed_color;
         inline void set_style_for_button(Button& button) const {
+            if (!view_style.flexDirection.has_value()) {
+                YGNodeStyleSetFlexDirection(button.m_layout_node, YGFlexDirectionRow);
+            }
             if (!view_style.backgroundColor.has_value()) {
                 button.m_background_color = { 90, 123, 192, SDL_ALPHA_OPAQUE };
             }
@@ -31,32 +35,40 @@ public:
             }
 
             if (!view_style.padding.has_value()) {
-                YGNodeStyleSetPadding(button.m_layout_node, YGEdgeAll, 8.0f);
+                YGNodeStyleSetPadding(button.m_layout_node, YGEdgeHorizontal, 16.0f);
+                YGNodeStyleSetPadding(button.m_layout_node, YGEdgeVertical, 8.0f);
+            }
+            if (!view_style.border.has_value()) {
+                YGNodeStyleSetBorder(button.m_layout_node, YGEdgeAll, 1.0f);
+            }
+            if (!view_style.alignItems.has_value()) {
+                YGNodeStyleSetAlignItems(button.m_layout_node, YGAlignCenter);
             }
         }
     };
 
 public:
-    Button(const ButtonStyle& style, SDL_Renderer* renderer, std::string text, FuncPtr on_click_callback, void* ctx);
+    Button(const ButtonStyle& style, SDL_Renderer* renderer, const std::string& text, FuncPtr on_click_callback, void* ctx);
+    const std::string& get_text();
 
 protected:
     void on_update() override;
     void on_render() override;
-    void on_enter(InputState& input_state) override;
-    void on_leave(InputState& input_state) override;
-    void on_mouse_down(InputState& input_state) override;
-    void on_mouse_up(InputState& input_state) override;
+    void on_enter(InputState* input_state) override;
+    void on_leave(InputState* input_state) override;
+    void on_mouse_down(InputState* input_state) override;
+    void on_mouse_up(InputState* input_state) override;
     void on_resize() override;
 
-    void on_click(InputState& input_state);
+    void on_click(InputState* input_state);
 
 private:
     SDL_Color m_hover_color;
     SDL_Color m_pressed_color;
     std::string m_text;
+    Label* m_label = nullptr;
     void* m_ctx;
     FuncPtr m_on_click_callback;
-    SDL_Texture* m_text_texture;
     SDL_Texture* m_button_texture = nullptr;
     SDL_Texture* m_button_hovered_texture = nullptr;
     SDL_Texture* m_button_pressed_texture = nullptr;

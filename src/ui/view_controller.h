@@ -9,7 +9,7 @@
 class ViewController 
 {
 public:
-    ViewController(View* root);
+    ViewController(SDL_Renderer* renderer, View* root);
     ~ViewController();
 
     void update();
@@ -18,6 +18,7 @@ public:
     
 private:
     View* m_ui_root;
+    SDL_Renderer* m_renderer;
     int m_w;
     int m_h;
     bool m_resized = false;

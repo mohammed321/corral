@@ -30,10 +30,6 @@ Game::~Game()
 
 void Game::on_update()
 {
-    m_current_grid->m_enabled = true;
-    if (m_current_grid->m_puzzle->is_solved()) {
-        m_current_grid->m_enabled = false;
-    }
 }
 
 void Game::new_puzzle()
@@ -44,6 +40,14 @@ void Game::new_puzzle()
 void Game::reset_puzzle()
 {
     m_current_grid->reset_puzzle();
+}
+
+void Game::set_current_grid(Game *game, size_t index)
+{
+    game->m_current_grid->hide();
+    Grid* grids[] = {game->m_grid4x4, game->m_grid6x6, game->m_grid10x10};
+    game->m_current_grid = grids[index];
+    game->m_current_grid->show();
 }
 
 void Game::on_render()

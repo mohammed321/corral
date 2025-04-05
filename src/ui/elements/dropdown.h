@@ -4,36 +4,48 @@
 #include <vector>
 
 #include "../view.h"
+#include "label.h"
+#include "icon.h"
+#include "button.h"
 
-using ListItem = std::string;
+typedef void (*dropdown_selected_callback)(void* ctx, size_t index);
+
+class Dropdown;
 
 class DropdownListItem : public View {
-    DropdownListItem(const ViewStyle &style, SDL_Renderer *renderer, const std::string& text);
+    friend class Dropdown;
 
+public:
+    DropdownListItem(const ViewStyle &style, SDL_Renderer *renderer, Dropdown* dropdown, const std::string &text, size_t index);
+    const std::string& get_text();
 protected:
     void on_update() override;
     void on_render() override;
-    void on_enter(InputState &input_state) override;
-    void on_leave(InputState &input_state) override;
+    bool filter_event(View* watched_view, Event& event) override;
 
 private:
-    std::string m_text;
+
+    size_t m_index;
+    Button* m_button;
+    Dropdown* m_dropdown;
 };
 
 class DropdownList : public View
 {
     friend class Dropdown;
 public:
-    DropdownList(const ViewStyle &style, SDL_Renderer *renderer, const std::vector<ListItem>& items);
+    DropdownList(const ViewStyle &style, SDL_Renderer *renderer, Dropdown* dropdown, const std::vector<std::string>& items);
 
 protected:
     void on_update() override;
     void on_render() override;
-    void on_enter(InputState &input_state) override;
-    void on_leave(InputState &input_state) override;
+    void on_enter(InputState* input_state) override;
+    void on_leave(InputState* input_state) override;
+    bool filter_event(View* watched_view, Event& event) override;
 
 private:
-    bool hovered = false;
+    bool m_hovered = false;
+    std::vector<DropdownListItem*> m_items;
 };
 
 class Dropdown : public View
@@ -48,7 +60,7 @@ public:
         {
             if (!view_style.backgroundColor.has_value())
             {
-                dropdown.m_background_color = {2, 80, 112, SDL_ALPHA_OPAQUE};
+                dropdown.m_background_color = { 67, 99, 167, SDL_ALPHA_OPAQUE };
             }
             if (hover_color.has_value())
             {
@@ -62,35 +74,34 @@ public:
     };
 
 public:
-    Dropdown(const DropdownStyle &style, SDL_Renderer *renderer, const std::vector<ListItem>& items);
+    Dropdown(const DropdownStyle &style, SDL_Renderer *renderer, const std::vector<std::string>& items, dropdown_selected_callback selected_callback, void* ctx);
+    void select(size_t index);
 
 protected:
     void on_update() override;
     void on_render() override;
-    void on_enter(InputState &input_state) override;
-    void on_leave(InputState &input_state) override;
-    // void on_mouse_down() override;
-    // void on_click() override;
-    // void on_resize() override;
+    void on_enter(InputState* input_state) override;
+    void on_leave(InputState* input_state) override;
 
 private:
     SDL_Color m_hover_color;
-    SDL_Color m_pressed_color;
 
-    SDL_Texture *m_text_texture;
     SDL_Texture *m_Dropdown_texture = nullptr;
     SDL_Texture *m_Dropdown_hovered_texture = nullptr;
 
-    DropdownList *dropdown_list;
+    DropdownList *m_dropdown_list = nullptr;
+    Label* m_selected_label = nullptr;
+    Icon* m_icon = nullptr;
+    dropdown_selected_callback m_selected_callback; 
+    void* m_selected_callback_ctx;
 
-    bool hovered = false;
+    bool m_hovered = false;
+    size_t m_selected = 0;
     enum {
         opening,
         open,
         closing,
-        closed
-    } drop_down_list_state = closed;
-
-    // void set_text_texture();
-    // void set_Dropdown_texture();
+        closed,
+        selection_changed
+    } m_drop_down_list_state = closed;
 };

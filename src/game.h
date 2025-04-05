@@ -18,6 +18,8 @@ public:
     void new_puzzle();
     void reset_puzzle();
 
+    static void set_current_grid(Game* game, size_t index);
+
 private:
     Grid* m_grid4x4;
     Grid* m_grid6x6;

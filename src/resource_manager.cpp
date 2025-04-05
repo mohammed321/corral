@@ -75,7 +75,7 @@ FontManager::~FontManager()
 TTF_Font *FontManager::get_font_for_point_size(int point_size)
 {
     if (!m_fonts.contains(point_size)) {
-        TTF_Font* font = TTF_OpenFont("/Users/moe/Documents/projects/cpp/layout/res/FreeSansBold.ttf", static_cast<float>(point_size));
+        TTF_Font* font = TTF_OpenFont("res/OpenSans-Medium.ttf", static_cast<float>(point_size));
         if (!font) {
             SDL_Log("Couldn't load font: %s\n", SDL_GetError());
             std::exit(EXIT_FAILURE);
@@ -89,7 +89,7 @@ TTF_Font *FontManager::get_font_for_point_size(int point_size)
 TTF_Font *FontManager::get_icon_font_for_point_size(int point_size)
 {
     if (!m_icon_fonts.contains(point_size)) {
-        TTF_Font* font = TTF_OpenFont("/Users/moe/Documents/projects/cpp/layout/res/icomoon.ttf", static_cast<float>(point_size));
+        TTF_Font* font = TTF_OpenFont("res/icomoon.ttf", static_cast<float>(point_size));
         if (!font) {
             SDL_Log("Couldn't load font: %s\n", SDL_GetError());
             std::exit(EXIT_FAILURE);

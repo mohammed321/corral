@@ -12,12 +12,12 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIGURATION>")
 set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}" CACHE INTERNAL "")
 
 # Project name and version
-project(corall VERSION 1.0)
+project(corral VERSION 1.0)
 
 set(EXECUTABLE_NAME ${PROJECT_NAME})
 set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "") 
 set(SDL_SHARED OFF)
-# set(SDL_STATIC ON)
+set(SDL_STATIC ON)
 
 # Set C++ standard (e.g., C++20)
 set(CMAKE_CXX_STANDARD 20)
@@ -47,10 +47,14 @@ add_executable(${EXECUTABLE_NAME} ${SOURCES})
 add_subdirectory("deps/SDL" EXCLUDE_FROM_ALL)
 set(SDLTTF_VENDORED ON) # tell SDL_ttf to build its own dependencies
 add_subdirectory("deps/SDL_ttf" EXCLUDE_FROM_ALL)	
+add_subdirectory("deps/yoga" EXCLUDE_FROM_ALL)	
+if (NOT TARGET plutovg)
+   add_subdirectory("deps/plutovg" EXCLUDE_FROM_ALL)	
+endif()
 
 # Handle resources for WebAssembly
 if (EMSCRIPTEN)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s USE_GLFW=3 -s ASSERTIONS=1 -s WASM=1 -s ASYNCIFY -s GL_ENABLE_GET_PROC_ADDRESS=1 --preload-file res --shell-file ${CMAKE_SOURCE_DIR}/minshell.html")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s ALLOW_MEMORY_GROWTH -s ASSERTIONS=1 -s WASM=1 -s ASYNCIFY -s GL_ENABLE_GET_PROC_ADDRESS=1 --preload-file res --shell-file ${CMAKE_SOURCE_DIR}/minshell.html")
     set(CMAKE_EXECUTABLE_SUFFIX ".html") # This line is used to set your executable to build with the emscripten html template so that you can directly open it.
 endif()
 

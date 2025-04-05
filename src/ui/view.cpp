@@ -18,9 +18,40 @@ View::~View()
     YGNodeFree(m_layout_node);
 }
 
-bool View::handle_event()
+bool View::handle_event(Event& event)
 {
-    return false;
+    if (m_filter_view) {
+        m_filter_view->filter_event(this, event);
+    }
+
+    switch (event.get_type())
+    {
+        case Event::enter:
+            on_enter(event.m_input_state);
+            break;
+        case Event::leave:
+            on_leave(event.m_input_state);
+            break;
+        case Event::mouse_down:
+            on_mouse_down(event.m_input_state);
+            break;
+        case Event::mouse_up:
+            on_mouse_up(event.m_input_state);
+            break;
+        case Event::mouse_move:
+            on_mouse_move(event.m_input_state);
+            break;
+    
+    default:
+        return false;
+    }
+
+    return true;
+}
+
+bool View::filter_event(View* watched_view, Event& event)
+{
+    return true;
 }
 
 void View::on_resize()
@@ -28,23 +59,23 @@ void View::on_resize()
     // code that should run if bounds change
 }
 
-void View::on_enter(InputState &input_state)
+void View::on_enter(InputState* input_state)
 {
 }
 
-void View::on_leave(InputState &input_state)
+void View::on_leave(InputState* input_state)
 {
 }
 
-void View::on_mouse_down(InputState& input_state)
+void View::on_mouse_down(InputState* input_state)
 {
 }
 
-void View::on_mouse_up(InputState &input_state)
+void View::on_mouse_up(InputState* input_state)
 {
 }
 
-void View::on_mouse_move(InputState &input_state)
+void View::on_mouse_move(InputState* input_state)
 {
 }
 
